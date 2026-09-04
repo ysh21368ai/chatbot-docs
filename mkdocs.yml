@@ -90,8 +90,6 @@ nav:
 
   - 운영 참고:
       - CI 파이프라인: ci.md
-      - 알려진 이슈 (2026-06-09 스냅샷): known-issues.md
-
   - 변경 이력: changelog.md
 
 theme:

@@ -34,10 +34,10 @@ team_member (팀원)
 ### (b) 인사(HR) DB 동기화 — 계정 사전 생성 (운영 기본)
 매일 09:00 KST 사내 그룹웨어 인사 DB 를 조회해 사용자를 미리 생성/갱신합니다(`services/hr_sync.py`).
 신규는 `role=member`·`approval_status=approved`로 생성되고, 이름·팀·회사(company)·그룹웨어 로그인 자격
-(`login_id`·비밀번호 해시)이 인사 DB 정본으로 채워집니다. 동작 상세는 [operations.md §11](./operations.md).
+(`login_id`·비밀번호 해시)이 인사 DB 정본으로 채워집니다. 동작 상세는 operations.md §11(사내 운영 문서).
 
 ### (c) 포털 SSO(JIT) — 첫 진입 시 생성
-사내 포털에서 넘어오는 SSO 토큰으로 첫 진입 시 계정이 자동 생성(JIT)됩니다([operations.md §10](./operations.md)). HR 동기화와 상호보완합니다.
+사내 포털에서 넘어오는 SSO 토큰으로 첫 진입 시 계정이 자동 생성(JIT)됩니다(operations.md §10(사내 운영 문서)). HR 동기화와 상호보완합니다.
 
 ### (d) 팀장이 팀원을 직접 등록 (예외 온보딩)
 HR/SSO 로 커버되지 않는 예외는 팀장이 `POST /team/members` 로 이메일/비밀번호를 직접 설정해 생성 — 이 경우 `approval_status=approved`로 즉시 로그인 가능합니다.
