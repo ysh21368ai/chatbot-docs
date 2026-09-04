@@ -21,6 +21,12 @@ class ChatStreamIn(BaseModel):
     files: list[FileAttachment] | None = None
 ```
 
+> **`use_rag` 의 현재 의미(30차, 2026-07-29)**: 일반 채팅의 'RAG 토글' UI 가 제거되어
+> 프론트는 `use_rag = 챗봇 선택 여부` 로 보낸다. 즉 챗봇 없는 일반 채팅은 항상 `false`
+> (모델 지식만으로 답변), 챗봇 대화는 `true` 로 보내고 실효값은 백엔드가
+> `payload.use_rag AND chatbot.use_rag`(+`rag_scope`) 로 결정한다. 파라미터 자체는
+> 하위호환을 위해 유지.
+
 응답은 SSE — 각 줄이 `data: {...}\n\n`. 이벤트 종류:
 - `{citations: [...]}` — RAG 인용 카드 (스트리밍 전에 우선 전송)
 - `{step_start: {n, tools}}` / `{step_end: {n, tools}}` — agent step 시작·종료

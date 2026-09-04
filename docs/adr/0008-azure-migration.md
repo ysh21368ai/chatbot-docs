@@ -1,5 +1,8 @@
 # ADR-0008: Azure 운영 배포 — pgvector RAG (Postgres · Blob · OpenAI API-key · Container Apps)
 
+> **실구현 보충(2026-07)**: 시크릿은 Key Vault 대신 **Container Apps secrets**(`secretref:`)로 운영 중이며, Blob 저장(`services/storage.py`)·임베딩 분기는 결정대로 구현 완료. 본문은 결정 시점(2026-06-10) 기록으로 보존한다.
+
+
 - 상태: **승인 — 프로비저닝 진행(검토 패키지 `infra/` 동봉)**
 - 날짜: 2026-06-10 (개정 3판 — AI Search 제외, pgvector 채택)
 - 관련: `infra/main.bicep`·`infra/README.md`(IaC·비용·절차·태그), ADR-0001(샌드박스), ADR-0004/0005(self-modifying tools·Claude Code), ADR-0006(Progressive Workspace)

@@ -1,5 +1,7 @@
 # 클로드 코드 모드 (Claude Code Mode)
 
+> **기본 비활성(2026-09-03)** — Claude CLI 호출 기능은 운영·개발 모두 기본 OFF 입니다. 백엔드 `FEATURE_CLAUDE_CODE=true` 를 명시해야 라우터가 등록되고 채팅 직행 분기가 열립니다(프론트 `full` 빌드의 모드 토글은 그 전까지 403 을 받습니다).
+>
 > **개발 전용(운영 미노출)** — 클로드 코드 모드는 ADR-0009 의 개발 티어 전용 기능입니다. 운영(`APP_ENV=prod` / `FEATURE_CLAUDE_CODE=off`)에서는 `claude_code`·`workspace` 라우터가 등록되지 않고, chat 라우터의 직행 분기에서도 `claude_code_mode=true` 면 403("이 환경에서는 Claude Code 모드를 사용할 수 없습니다.")으로 거부되며 `claude_code` 도구가 항상-켜짐 세트에서 제외됩니다(`router.py` `_ALWAYS_ON_TOOLS` discard). 프론트의 슬래시 메뉴/배너에도 노출되지 않습니다.
 
 채팅 인터페이스 안에서 **실제 파일을 읽고/쓰고/실행**할 수 있는 코딩 전용 모드입니다. 일반 채팅 모드가 "대화 위주"라면, 클로드 코드 모드는 "작업 위주"로 동작하며 가상 작업공간(workspace)을 가집니다.

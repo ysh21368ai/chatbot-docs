@@ -65,12 +65,15 @@ const handleLogout = () => {
 
 ## 5. 챗봇 편집 (`/chatbots/[id]`)
 
-3개 탭:
-1. **기본** — 이름, 설명, 모델, 시스템 프롬프트, 가시성, RAG 스코프
-2. **문서** — 팀 문서 + 내 개인 문서 목록에서 체크박스로 연결 선택 (`linked_only` 스코프에서 핵심)
-3. **도구** — 내가 설치/자격증명 등록한 도구를 활성화 토글
+탭이 아니라 **단일 스크롤 폼**이며, 3개 `stitch-card` 섹션으로 나뉜다(`app/(workspace)/chatbots/[id]/page.tsx`):
 
-"저장" 시 각각 `PATCH /chatbots/{id}` · `PUT /chatbots/{id}/documents` · `PUT /chatbots/{id}/tools`.
+1. **기본** — 이름, 설명, 모델, 시스템 프롬프트, 가시성, 근거 범위
+   - **가시성**: 3값(`나만`/`우리 팀`/`선택 팀`) 라디오 카드 `VisibilityChooser` (`features/chatbots/VisibilityChooser.tsx`). `선택 팀`(=`shared`) 선택 시 바로 아래에 회사→팀 트리+검색 `TeamPicker` 가 펼쳐지고, 고른 팀은 저장 시 `extra_team_ids` 로 전달된다.
+   - **근거 범위**: `RagScopeChooser` 가 `use_rag`(bool) + `rag_scope`(`linked_only`/`owner_visible`/`team_all`)를 한 컨트롤(안 봄/고른 문서만/내가 올린 문서 전체/우리 팀 문서 전체)로 통합한다.
+2. **고를 문서** — `use_rag && rag_scope === 'linked_only'` 일 때만 렌더된다. 인라인 체크박스 대신 `DocumentPickerModal`(검색·폴더 트리·무한 스크롤 페이지네이션, 수만 건 대응)로 지정 문서를 고른다.
+3. **장착된 도구** — 활성화 토글. 도구는 개발 전용(ADR-0009)이라 운영(rag) 빌드에선 미노출.
+
+"저장" 시 각각 `PATCH /chatbots/{id}`(가시성·`extra_team_ids`·`use_rag`·`rag_scope` 포함) · `PUT /chatbots/{id}/documents` · `PUT /chatbots/{id}/tools`.
 
 ## 6. 도구 마켓 (`/tools`)
 
@@ -87,8 +90,8 @@ const handleLogout = () => {
 ## 8. 공지 · FAQ · 마이페이지
 
 - `/notices`: 작게 보이던 공지 영역을 별도 페이지로 분리. 관리자는 생성/수정/비활성화 가능.
-- `/faq`: 사용자가 기능 요구사항이나 질문을 작성하고, 관리자가 답변/상태를 관리.
-- `/mypage`: 내 프로필과 LLM 사용량 요약. USD 비용과 KRW 환산액을 함께 표시.
+- `/faq`(물어보기): 사용자가 기능 요구사항/질문을 작성하면 **AI 가 자동으로 1회 답변**(`[AI 자동답변]` 칩으로 사람 답변과 시각 구분)하고, 관리자가 이어서 답변/상태를 관리한다. 상단에는 **"특정 챗봇에 대한 문의는 그 챗봇 담당자에게 먼저"** 콜아웃(① 담당자 → ② 관리자 동선 분리)이 있다.
+- `/mypage`: 계정 정보(역할·**소속=회사·팀** 표시) + **AI 개인화 메모리** 섹션(`/auth/me/memory` 조회·초기화) + LLM 사용량 요약(USD 비용과 KRW 환산액).
 - `/chat`: 좌측 하단에 최신 공지 3개와 7일 사용량 요약을 축약 표시.
 
 ## 9. 로그아웃 UX 요구사항 (체크리스트)

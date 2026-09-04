@@ -54,7 +54,7 @@
 |---|---|
 | LLM 호출 | OpenAI / Anthropic / Google (litellm) |
 | 외부 도구 OAuth | Gmail, Google Calendar, Kakao |
-| 외부 검색 | DuckDuckGo (web_search) |
+| 외부 검색 | 자체호스팅 SearXNG 1순위 + DuckDuckGo 폴백 (web_search) |
 | MCP 서버 (외부 도구 통합) | 표준 MCP 프로토콜로 외부 서버 연결 |
 | 디자인 자료 | getdesign.md (시드) |
 | 커뮤니티 스킬 | skillsmp.com (시드 + 주기 동기화) |

@@ -24,19 +24,19 @@ mindmap
  RAG 스코프 linked_only / owner_visible / team_all
  도구 바인딩
  도구
- builtin: web_search, code_interpreter, image_generate, stock_price/history
+ builtin: web_search(SearXNG→DDG 폴백), image_generate, stock_price/history — code_interpreter 는 ADR-0005 로 폐기(claude_code 대체)
  oauth: Gmail, Kakao, Google Calendar, M365
  http: 사내 Webhook
  mcp: MCP 서버
  관리
- 3단계 RBAC
+ RBAC 4역할(member/team_auditor/team_admin/super_admin)
  가입 승인 / 비활성화
  팀 생성·초대코드
- 대화 감사(auditor)
+ 대화 감사(super_admin 전용)
  인프라
  PostgreSQL + pgvector
  Docker 샌드박스
- Azure 배포(Container Apps · PostgreSQL/pgvector · Blob · Key Vault, koreacentral — 라이브)
+ Azure 배포(Container Apps ×3(backend·frontend·searxng) · PostgreSQL/pgvector · Blob · ACR, koreacentral — 라이브)
  CI/CD(GitHub Actions deploy.yml · OIDC · 무중단 롤링)
 ```
 
@@ -51,7 +51,11 @@ mindmap
 | 교차팀 공유 | 특정 팀이 만든 RAG 챗봇을 다른 팀이 사용 (구현됨: visibility=shared + chatbot_team_access) | [chatbot_sharing.md](./chatbot_sharing.md) |
 | 도구 *(개발 전용·운영 미노출)* | builtin/oauth/http/mcp 4종, 자격증명 안전 저장 (FEATURE_CUSTOM_TOOLS·isRagOnly 가드) | [tools.md](./tools.md) |
 | 코드 실행 *(개발 전용·운영 미노출)* | Docker 기반 Python 샌드박스, 네트워크 차단 | [sandbox.md](./sandbox.md) |
-| 감사 | 팀원 대화 열람(team_auditor+) | [rbac.md](./rbac.md) |
+| 감사 | 전 팀 대화 열람 — **super_admin 전용**(2026-07-03 정책) | [rbac.md](./rbac.md) |
+| 사용자 동기화 | 인사(HR) DB 를 매일 조회해 사용자 사전 생성/갱신·비활성화(SSO/JIT 보완) — `hr_sync.py`, 스케줄러 `register_hr_sync_job` | 관리자 문서(내부) |
+| 물어보기 AI 자동답변 | 시스템 문의/기능요청 게시판(FaqPost) 새 글에 AI 가 1회 자동 답변(운영 매뉴얼·첨부문서 근거) — `faq_post_ai.py` | — |
+| 챗봇 FAQ AI 답글 | 챗봇별 Q&A(ChatbotFaq) 게시판에 AI 답글(웹서치·RAG 옵션) — `faq_ai.py` | — |
+| 물어보기 새 글 관리자 이메일 알림 | 새 게시글 등록 시 Microsoft Graph 로 관리자에게 이메일 발송(best-effort) — `graph_mailer.py` | — |
 | 배포 | Azure + GitHub Actions CI/CD | 배포 문서(내부) |
 
 ## 3. 사용자 관점 시나리오
@@ -86,11 +90,15 @@ mindmap
 | `tool_registry.py` | 도구 카탈로그 + `dispatch()` |
 | `agent.py` | 에이전트 루프(툴 콜/응답) |
 | `code_sandbox.py` | Docker 샌드박스 실행 |
-| `web_search.py` | DuckDuckGo 검색 |
+| `web_search.py` | 웹 검색 — 자체호스팅 SearXNG 1순위, DuckDuckGo 폴백 |
 | `stock.py` | 네이버 시세/이력 |
 | `llm_runtime.py` | LiteLLM 래퍼(모델 프로바이더 추상화) |
 | `user_memory.py` | 사용자별 요약 메모리 |
 | `title_gen.py` | 대화 제목 자동 생성 |
+| `hr_sync.py` | 인사(HR) DB → 사용자 사전 동기화(매일 배치·SSO 보완, 스케줄러 `register_hr_sync_job`) |
+| `graph_mailer.py` | Microsoft Graph 이메일 발송(물어보기 새 글 관리자 알림 등, best-effort) |
+| `faq_post_ai.py` | 물어보기(FaqPost) 게시글 AI 자동 답변 생성 |
+| `faq_ai.py` | 챗봇별 FAQ(ChatbotFaq) 게시판 AI 답글 생성 |
 | `bootstrap_admin.py` | 최초 기동 시 super_admin 시드 |
 | `schema_upgrade.py` | 기동 시 enum/컬럼 누락 보정 |
 
@@ -117,5 +125,5 @@ mindmap
 | SSE 첫 토큰 지연 | p50 ≤ 1.5s, p95 ≤ 3.5s | `/chat/stream` 첫 이벤트 |
 | 문서 업로드 처리 | 5 MB ≤ 30s로 `status=ready` | `process_document_job` 로그 |
 | RAG 검색 지연 | p95 ≤ 400 ms (청크 1M) | `rag.py` 타이머 |
-| 가용성 | 99.5%/월 | Azure App Service / Container Apps 지표 |
+| 가용성 | 99.5%/월 | Azure Container Apps 지표 + healthz 외부 핑 |
 | 샌드박스 실패율 | < 2% (비-사용자 오류) | `exit_code=-1` 비율 |

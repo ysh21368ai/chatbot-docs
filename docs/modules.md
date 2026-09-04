@@ -7,12 +7,12 @@
 | 파일 | 책임 |
 | ---- | ---- |
 | `main.py` | FastAPI 앱 생성, 미들웨어, 라우터 등록, 생명주기(`lifespan`) |
-| `config.py` | `Settings` (pydantic-settings), 모델 카탈로그, 업로드 경로 해석 |
-| `database.py` | SQLAlchemy 비동기 엔진 · `SessionLocal` · `Base` · `get_db` |
-| `deps.py` | `get_current_user`, `require_team_admin`, `require_super_admin` (신규), `require_team` |
-| `models.py` | ORM 엔터티 전체 |
+| `core/config.py` | `Settings` (pydantic-settings), 모델 카탈로그, 업로드 경로 해석 |
+| `db/database.py` | SQLAlchemy 비동기 엔진 · `SessionLocal` · `Base` · `get_db` |
+| `core/deps.py` | `get_current_user`, `require_team_admin`, `require_super_admin`, `require_team` |
+| `db/models.py` | ORM 엔터티 (도메인별 모듈 패키지) |
 | `schemas.py` | Pydantic I/O 스키마 |
-| `security.py` | bcrypt 해시 · JWT 발급·검증 |
+| `core/security.py` | bcrypt 해시 · JWT 발급·검증 |
 | `error_handlers.py` | 공통 예외 → HTTP 응답 변환 |
 | `llm_user_errors.py` | LLM 오류를 사용자용 한국어 메시지로 변환 |
 | `logging_setup.py` | 회전 파일 로거 설정 |
@@ -34,7 +34,9 @@
 | `chat` | `/chat` | `POST /stream` (SSE), `POST /regenerate` |
 | `images` | `/images` | DALL·E 이미지 생성 |
 | `models_catalog` | `/models` | 사용 가능한 LLM 목록 |
-| `themes` · `notices` · `usage` · `faqs` · `stats` · `metrics` | 각 prefix | 테마·공지·사용량·Q&A/FAQ·통계·메트릭 (운영 포함) |
+| `notices` | (prefix 없음) | 공지(`/notices*`) **+ 물어보기/기능요청 게시판 `FaqPost`(`/faq/posts`)** — FaqPost 는 `features/notices/router.py` 소속이다(faqs 도메인 아님). 새 글 등록 시 AI 자동답변(`faq_post_ai`)·관리자 이메일 알림(`graph_mailer`)을 `BackgroundTasks` 로 트리거 |
+| `faqs` | `/chatbots/{id}/faqs` · `/faqs` | **챗봇별** Q&A 게시판(`ChatbotFaq`) — 질문/댓글/AI 답글(`faq_ai`)/채택. `/faq/posts` 와 별개 도메인 |
+| `themes` · `usage` · `stats` · `metrics` | 각 prefix | 테마·사용량·통계·메트릭 (운영 포함) |
 | `tools` *(개발 전용)* | `/tools` | 카탈로그 목록, 자격증명 등록, 커스텀 도구 등록 — `FEATURE_CUSTOM_TOOLS` off 시 미등록(404) |
 | `skills` · `workflows` · `schedules` · `claude_code` · `workspace` *(개발 전용)* | 각 prefix | 스킬·워크플로·스케줄·Claude Code·작업공간 — 각 `FEATURE_*` off 시 미등록(404) |
 
@@ -52,25 +54,40 @@
 | `tool_registry.py` *(도구 마켓=개발 전용·운영 미노출)* | 도구 실행 · 시드 카탈로그 | `dispatch(tool_slug, args, ctx)`, `seed_builtin_catalog()` |
 | `agent.py` | 다단계 에이전트 루프, 툴 콜 | `run_agent(model, messages, workspace, *, allowed_tools=None, claude_code_options=None, max_steps=6)` |
 | `code_sandbox.py` | Docker 파이썬 샌드박스 | `run_code(code, files, timeout)` |
-| `web_search.py` | DuckDuckGo 검색 | `search_web(q, n)` |
+| `web_search.py` | 웹 검색 — SearXNG 1순위·DDG 폴백 | `search_web(q, n)` |
 | `stock.py` | 네이버 주식 시세/시세 이력 | `fetch_stock_price`, `fetch_stock_history` |
 | `llm_runtime.py` | LiteLLM 래퍼 + 환경 구성 | `stream_chat`, `completion_kwargs` |
 | `user_memory.py` | 대화에서 사용자 프로필 추출·저장 | `get_memory`, `update_memory_from_conversation` |
 | `title_gen.py` | 대화 제목 자동 생성 | `generate_title` |
+| `hr_sync.py` | 인사(HR) DB → 사용자 사전 동기화(매일 배치·SSO 보완) | `run_hr_sync()`, `register_hr_sync_job(scheduler)` |
+| `graph_mailer.py` | Microsoft Graph 이메일 발송(물어보기 새 글 알림 등, best-effort) | `send_mail(...)` |
+| `faq_post_ai.py` | 물어보기(FaqPost) 게시글 AI 자동 답변 | `generate_faq_post_answer(...)`, `AI_ANSWER_PREFIX` |
+| `faq_ai.py` | 챗봇별 FAQ(ChatbotFaq) 게시판 AI 답글 | `generate_ai_answer(...)` |
 | `bootstrap_admin.py` | 최초 기동 시 관리자 계정 시드 | `ensure_bootstrap_admin()` |
 
 ### 1.4 역할 책임 매트릭스 (신규 기능)
 
 | 기능 | 레이어 | 담당 파일 |
 | ---- | ---- | ---- |
-| 가입 승인 | auth → admin | `routers/auth.py`, `routers/admin.py` |
+| 가입 승인 | auth → admin | `features/auth/router.py`, `features/admin/router.py` |
 | 3단계 권한 강제 | deps → 라우터 | `deps.py` (`require_super_admin`), 각 라우터의 Dependency |
-| 챗봇 생성·편집 | 라우터 | `routers/chatbots.py` |
+| 챗봇 생성·편집 | 라우터 | `features/chatbots/router.py` |
 | 챗봇 스코프 기반 RAG | 서비스 | `services/chatbot_rag.py` |
-| 문서↔벡터스토어 동기화 | ORM cascade + 라우터 | `models.py` (cascade), `routers/documents.py` |
-| 도구 마켓/바인딩 | 라우터 + 서비스 | `routers/tools.py`, `services/tool_registry.py` |
+| 문서↔벡터스토어 동기화 | ORM cascade + 라우터 | `db/models.py` (cascade), `features/documents/router.py` |
+| 도구 마켓/바인딩 | 라우터 + 서비스 | `features/tools/router.py`, `services/tool_registry.py` |
 | HWP/HWPX 파서 | 서비스 | `services/document_parser.py` |
 | 전역 로그아웃 | 프론트 | `shared/layout/AppShell.tsx` (+ `shared/lib/api.ts` 의 `logout()`) |
+
+### 1.5 배경 작업 (스케줄러 · 생명주기)
+
+`main.py` 의 `lifespan` 이 기동 시 스케줄러(`schedule_runner.start_scheduler`)와 지표 워커를 띄운다.
+
+| 작업 | 트리거 | 담당 |
+| ---- | ---- | ---- |
+| HR 사용자 사전 동기화 | APScheduler cron(`HR_SYNC_CRON`, 기본 09:00 KST) — `HR_SYNC_ENABLED` 구성 시에만 등록 | `services/hr_sync.py::register_hr_sync_job()` (`start_scheduler` 안에서 호출) |
+| 예약 쿼리(ScheduledQuery) | DB row → cron 잡 재등록 | `services/schedule_runner.py` |
+| 물어보기 새 글 AI 자동답변 | 게시글 생성 시 `BackgroundTasks` | `features/notices/router.py` → `services/faq_post_ai.py` |
+| 물어보기 새 글 이메일 알림 | 게시글 생성 시 `BackgroundTasks` | `features/notices/router.py` → `services/graph_mailer.py` |
 
 ---
 
@@ -149,7 +166,7 @@ data/
 ## 4. 인프라 (`docker-compose.yml` · `backend/sandbox/Dockerfile`)
 
 - `db`: `pgvector/pgvector:pg16` (`5433`에 매핑, `init-db.sql`로 확장 설치)
-- `backend/sandbox/Dockerfile`: `code_interpreter` 도구가 사용하는 격리 Python 이미지
+- `backend/sandbox/Dockerfile`: 코드 실행 샌드박스(개발 전용)의 격리 Python 이미지 — `code_interpreter` 도구 자체는 ADR-0005 로 폐기(claude_code 대체)
 
 ## 5. 배포 의존성
 

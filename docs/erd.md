@@ -17,6 +17,7 @@ erDiagram
  USERS ||--o{ TOOL_CREDENTIALS : "보유"
  USERS ||--o{ USER_MEMORIES : "1:1"
  USERS ||--o{ MEMBERSHIP_APPROVALS : "신청자"
+ USERS ||--o{ REFRESH_TOKENS : "세션"
  USERS }o--|| USERS : "승인한 관리자"
  DOCUMENTS ||--o{ DOCUMENT_CHUNKS : "임베딩"
  DOCUMENTS ||--o{ DOCUMENT_SHARES : "공유"
@@ -39,6 +40,7 @@ erDiagram
 | ---- | ---- | ---- | ---- |
 | **id** | UUID | PK | |
 | name | String(200) | * | |
+| company | String(200) | nullable | **신규(2026-07-13)** — 소속 회사/법인명. 회사별 팀 분리(같은 팀명도 회사가 다르면 별개 팀) |
 | slug | String(120) | `#` * | URL safe |
 | invite_code | String(64) | `#` * | 팀장이 로테이트 가능 |
 | created_by_user_id | UUID *FK users.id* | nullable | **신규** — super_admin 생성 시 기록 |
@@ -50,10 +52,13 @@ erDiagram
 | **id** | UUID | PK | |
 | email | String(320) | `#` * | index |
 | hashed_password | String(255) | * | bcrypt |
+| login_id | String(100) | nullable, 부분 유니크(lower) | **신규(2026-07-07)** — 그룹웨어 USER_ID. 로그인 식별자로 이메일 대신 사용 가능 |
+| external_pass_sha256 | String(64) | nullable | **신규(2026-07-07)** — 그룹웨어 USER_PASS 해시(위임 인증 대조용, HR 동기화가 매일 갱신) |
 | full_name | String(200) | * | |
+| company | String(200) | nullable | **신규(2026-07-13)** — 소속 회사/법인명. 그룹웨어 국문 조직명, HR 동기화가 채움 |
 | *team_id* | UUID FK teams.id | nullable | |
-| role | Enum `UserRole` | * | **확장** — super_admin / team_admin / team_auditor / team_member |
-| approval_status | Enum `ApprovalStatus` | * default=pending | **신규** — pending / approved / rejected |
+| role | Enum `UserRole` | * | **확장** — super_admin / team_admin / team_auditor / member |
+| approval_status | Enum `ApprovalStatus` | * default=approved | **신규** — pending / approved / rejected |
 | invited_by_user_id | UUID FK users.id | nullable | **신규** — 초대한 팀장 |
 | is_active | Boolean | * default=true | |
 | active_theme_id | UUID FK themes.id | nullable | 활성 디자인 테마 |
@@ -61,20 +66,36 @@ erDiagram
 | level_reached_at | DateTime(tz) | nullable | **신규** — 마지막 *레벨업* 시각. 공지 피드가 최근 7일 레벨업을 "○○님이 중급 Lv.1 달성!" 으로 노출 |
 | created_at | DateTime | * | |
 
-> **레거시 호환**: 기존 enum 값 `member` 는 의미상 `team_member`로 표시됩니다. 마이그레이션 시 `UserRole` enum 값은 보존하고 alias(`team_member = member`)를 두는 전략을 사용합니다.
+> **레거시 호환**: DB enum 값은 `member` 이며, 문서/UI 상에서만 편의상 "team_member"로 부릅니다. 코드(`UserRole`)에는 `team_member` alias 가 없습니다 — enum 멤버는 `member` 하나뿐입니다.
+
+### refresh_tokens
+
+회전식 리프레시 토큰(2026-06 도입 — access 60분 + refresh 14일). 재사용이 감지되면 해당 사용자의 토큰을 전부 철회한다.
+
+| 컬럼 | 타입 | 제약 | 비고 |
+| ---- | ---- | ---- | ---- |
+| **id** | UUID | PK | |
+| *user_id* | UUID FK users.id | * | CASCADE |
+| token_hash | String | `#` * | 원문 미저장(해시만) |
+| expires_at | DateTime(tz) | * | 14일 |
+| revoked_at | DateTime(tz) | nullable | 회전/철회 시각 |
+| replaced_by | UUID | nullable | 회전으로 이 토큰을 대체한 신규 refresh_tokens.id (감사 추적용, 자기참조 FK 미지정) |
+| created_at | DateTime(tz) | * | |
 
 ### documents
 | 컬럼 | 타입 | 제약 | 비고 |
 | ---- | ---- | ---- | ---- |
 | **id** | UUID | PK | |
-| *team_id* | UUID FK teams.id | * | |
+| *team_id* | UUID FK teams.id | nullable | NULL = 팀 미소속 super_admin 의 전역 버킷 (2026-07-03) |
 | *owner_user_id* | UUID FK users.id | * | |
 | scope | Enum `DocumentScope` | * | team / personal |
+| folder | String(512) | * default '' | 사용자 가상 폴더 경로(예: `인사/2026`), '' = 루트(미분류). 디스크 적재도 이 경로를 따름 |
 | description | Text | * default '' | 사용자 작성 문서 설명 — RAG 검색 시 출처 컨텍스트로 포함해 정확도 향상 |
 | storage_path | String(1024) | * | 절대 경로 |
 | original_filename | String(512) | * | |
 | mime_type | String(200) | | |
 | byte_size | Integer | default 0 | |
+| content_sha256 | String(64) | nullable, index | 업로드 원본 내용 sha256 — 팀 내 중복 업로드 차단. 도입 전 업로드분은 NULL |
 | status | Enum `DocumentStatus` | * | processing / ready / failed |
 | error_message | Text | | 파서/임베딩 오류 메시지 |
 | created_at | DateTime | * | |
@@ -135,7 +156,7 @@ erDiagram
 | 컬럼 | 타입 | 제약 | 비고 |
 | ---- | ---- | ---- | ---- |
 | **id** | UUID | PK | |
-| *team_id* | UUID FK teams.id | * | |
+| *team_id* | UUID FK teams.id | nullable | NULL = 팀 미소속 super_admin 의 전역 버킷 (2026-07-03) |
 | *owner_user_id* | UUID FK users.id | * | |
 | name | String(200) | * | |
 | description | Text | | |
@@ -144,7 +165,6 @@ erDiagram
 | model_id | String(200) | * | `openai/gpt-5.5` 등 |
 | use_rag | Boolean | * default=true | |
 | rag_scope | Enum `ChatbotRagScope` | * default=linked_only | linked_only / owner_visible / team_all |
-| vectorstore_partition | String(64) | nullable | 향후 파티셔닝 키 |
 | created_at / updated_at | DateTime | * | |
 
 **인덱스**: `(team_id, visibility)`, `(owner_user_id)`
@@ -174,7 +194,7 @@ erDiagram
 | author_user_id | UUID FK users.id NULL | | 사용자 커스텀 도구 작성자 (PR2 보안 정책) |
 | team_id | UUID FK teams.id NULL | | 사용자 도구의 소속 팀 |
 | source | Enum `ToolSource` | * default=system | `system` / `user` |
-| visibility | Enum `ToolVisibility` | * default=private | `private` (작성자만) / `team` (팀장+ 등록 필요) / `public` (팀장+ 등록 필요) |
+| visibility | Enum `ToolVisibility` | * default=public | `private` (작성자만) / `team` (팀장+ 등록 필요) / `public` (팀장+ 등록 필요). system 시드 도구는 항상 public |
 | upvote_count | Integer | * default=0 | `UserToolUpvote` aggregate |
 | fork_count | Integer | * default=0 | 사용자 fork(복제) 횟수 |
 | forked_from_id | UUID FK tools.id NULL | ON DELETE SET NULL | 원본 도구 (사용자가 fork 한 경우) |
@@ -287,7 +307,7 @@ class UserRole(str, enum.Enum):
  super_admin = "super_admin"
  team_admin = "team_admin"
  team_auditor = "team_auditor"
- team_member = "team_member" # 레거시 DB에 "member" 값이 있으면 alias로 처리
+ member = "member" # 문서/UI 상 "team_member"로 부르지만 DB enum 값은 member (코드에 alias 없음)
 
 class ApprovalStatus(str, enum.Enum):
  pending = "pending"

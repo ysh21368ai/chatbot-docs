@@ -148,12 +148,11 @@ PATCH /chatbots/{id}
 
 ## 8. UI 변경
 
-- `/chatbots/[id]` 편집 "기본" 탭:
- - 가시성 라디오: `🔒 Private` · `👥 Public`
- - `Public` 선택 시 하단에 **승인된 팀** 멀티셀렉트가 펼쳐짐. 체크 변경 시 `/shares` 호출.
-- `/chatbots` 목록 뱃지:
- - 내가 만든 챗봇: `🔒 Private` / `👥 Public (n개 팀 승인)`
- - 승인 받아 보이는 챗봇: `🤝 공유 받음 · ○○팀`
+- `/chatbots/[id]` 편집 "기본" 섹션(탭 아님 — 단일 스크롤 폼):
+ - 가시성은 **3값 라디오 카드** `VisibilityChooser`(`🔒 나만` / `👥 우리 팀` / `🌐 선택 팀`) — 표시 명칭·아이콘은 `features/chatbots/labels.ts` 단일 소스.
+ - `선택 팀`(=`shared`) 선택 시 하단에 회사→팀 트리+검색 `TeamPicker`(`features/chatbots/TeamPicker.tsx`)가 펼쳐진다. 고른 팀은 별도 호출이 아니라 **저장(`PATCH /chatbots/{id}`) 본문의 `extra_team_ids`** 로 전달된다. **전용 `/shares` 엔드포인트는 없다.**
+- 생성(`/chatbots`)·편집(`/chatbots/[id]`) 페이지가 `VisibilityChooser`·`TeamPicker` 를 공유한다.
+- `/chatbots` 목록 뱃지: 가시성 태그는 `labels.ts` 의 `visibilityTag()`(`🔒 나만` / `👥 우리 팀` / `🌐 선택 팀`)로 통일.
 
 ## 9. 감사 · 책임 추적
 
@@ -166,7 +165,7 @@ PATCH /chatbots/{id}
 1. `chatbot_team_access` 테이블 신설(cascade FK 포함).
 2. 서비스 계층(`chatbot_service`, `chatbot_rag`)에 팀 접근 체크 로직 주입.
 3. 기존 `public` 챗봇은 변경 없이 **오너 팀 전용**으로 계속 동작.
-4. 프론트에 `/chatbots/[id]/shares` UI 추가.
+4. 프론트 공유 UI 는 별도 `/chatbots/[id]/shares` 화면/엔드포인트가 **아니라**, 편집·생성 폼의 `VisibilityChooser`+`TeamPicker` 로 처리하고 저장 시 `extra_team_ids` 로 전달한다(§8 및 상단 진실 박스 참조 — 전용 `/shares` 엔드포인트 없음).
 5. (선택) 감사 화면에 "공유 챗봇 대화" 필터 제공.
 
 ## 11. 오픈 이슈

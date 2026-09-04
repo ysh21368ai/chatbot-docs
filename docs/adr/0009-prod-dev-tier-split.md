@@ -17,7 +17,7 @@
 | 위치 | Azure `ai-part-rg` (koreacentral) | 로컬 dev 박스 (현행) |
 | 목적 | **RAG 챗봇 전용** | 풀 기능 디벨롭 트렁크 |
 | 기능 범위 | 운영 보장 4기능 — 채팅 대화 · 자료 업로드 · 챗봇 만들기 · RAG 문서 검색 | 전체 (Claude Code · 도구 · 워크플로 · 스킬 · 스케줄 · 샌드박스 · studio …) |
-| 배포 단위 | Container Apps 2개(BE/FE) + PG Flexible + Blob + Key Vault | docker compose(db) + uvicorn/next dev |
+| 배포 단위 | Container Apps 3개(BE/FE/SearXNG) + PG Flexible + Blob + ACR (시크릿은 CA secrets — Key Vault 미도입) | docker compose(db) + uvicorn/next dev |
 | 미배포 컴포넌트 | worker · tool-server · 샌드박스 docker · claude CLI — **운영 이미지에 미포함** | 전부 로컬 구동 |
 
 ### 2. 코드 분리 방식 — 포크 금지, 기능 플래그 (CONTRIBUTING 재확인)

@@ -45,7 +45,7 @@ flowchart LR
 
 ### 2-3. 임베딩 (`embeddings.py`)
 
-- OpenAI `text-embedding-3-small` (1536d). 배치 사이즈 100.
+- OpenAI `text-embedding-3-large` — pgvector HNSW 2000d 상한 때문에 `dimensions=1536` 으로 축소 요청. 배치 사이즈 64(`ingest.py`).
 - 호출 실패 시 백오프 후 재시도. 영구 실패 시 `_mark_document_failed`.
 - 차원이 pgvector HNSW 인덱스 차원과 일치해야 함 (스키마 1536 고정).
 

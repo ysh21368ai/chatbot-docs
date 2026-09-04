@@ -50,8 +50,8 @@ nav:
       - UX 원칙: ux-principles.md
       - IA 가드 (메뉴 추가 룰): ia-rules.md
       - 디자인 토큰 & 변화 내성 룰: design-tokens.md
-      - CTO 감사 보고서: audit-cto.md
-      - 전체 감사 보고서: full-audit.md
+      - CTO 감사 보고서 (2026-05-21 스냅샷): audit-cto.md
+      - 전체 감사 보고서 (2026-05-21 스냅샷): full-audit.md
 
   - 권한:
       - RBAC: rbac.md
@@ -87,6 +87,10 @@ nav:
       - ADR-0003 · Embedded IDE Workspace (Deferred · Builder Mode 로 흡수): adr/0003-embedded-ide-workspace.md
       - ADR-0002 · User-Scoped AI Execution Platform: adr/0002-user-scoped-ai-execution-platform.md
       - ADR-0001 · Sandbox Runtime & Lifecycle: adr/0001-sandbox-runtime.md
+
+  - 운영 참고:
+      - CI 파이프라인: ci.md
+      - 알려진 이슈 (2026-06-09 스냅샷): known-issues.md
 
   - 변경 이력: changelog.md
 
